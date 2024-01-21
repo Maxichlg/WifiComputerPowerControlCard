@@ -14,7 +14,7 @@
 #define TIME "TimeKey"
 #define TEMP "temp"
 
-char auth[] = "填入你的密钥";
+char auth[] = "填写你的密钥";
 char PWR_STATE = 0;   //开关机状态，0为关机，1为开机
 double work_time = 0;   //累计开机时长
 double start_time = 0;    //开机时间
@@ -76,11 +76,6 @@ void button2_callback(const String & state)    //重启键回调函数
     }
 }
 
-void dataRead(const String & data)
-{
-    BLINKER_LOG("Blinker readString: ", data);
-}
-
 void PowerDetect()  //开机状态检测
 {
     if(digitalRead(PWR_DET_PIN)==0)
@@ -123,19 +118,13 @@ void heartbeat()
     hebt_time=millis();   //APP请求一次心跳后，两分钟内持续发送的标志(赋值当前时间戳)
 }
 
-void rtData()   //发送实时数据
-{
-    Blinker.sendRtData(TEMP, temp_read);
-    Blinker.printRtData();
-}
-
 void my_heartbeat()
 {
 
-    if(millis()-hebt_time_limit>5000)//当前减去上次大于设定时间才能发，用于计时，最快5秒一次心跳(快于1秒一次会被拦截，串口显示MSESSAGE LIMIT)
+    if(millis()-hebt_time_limit>1000)//当前减去上次大于设定时间才能发，用于计时，最快1秒一次心跳(快于1秒一次会被拦截，串口显示MSESSAGE LIMIT)
     {
         /*这里放自己的心跳包内容*/
-        //Temp.print(temp_read);
+        Temp.print(temp_read);
         if(temp_read>50.0)
         {
             Temp.color("#FF0000");
@@ -147,11 +136,13 @@ void my_heartbeat()
 
         if(PWR_STATE==0)
         {
+            Text1.icon("far fa-lightbulb");
             Text1.print("OFF","已关机");
             Text1.color("#FF0000");
         }
         else if(PWR_STATE==1)
         {
+            Text1.icon("fas fa-lightbulb-on");
             Text1.print("ON","已开机");
             Text1.color("#00FF00");
         }
@@ -166,7 +157,7 @@ void my_heartbeat()
             Time.text("上次开机时长:");
         }
 
-        hebt_time_limit=millis();   //hebt_time_limit用于计时，最快5秒一次心跳
+        hebt_time_limit=millis();   //hebt_time_limit用于计时，最快1秒一次心跳
     }
 }
 
@@ -184,12 +175,10 @@ void setup()
     BLINKER_DEBUG.stream(Serial);
 
     Blinker.begin(auth);
-    Blinker.attachData(dataRead);
     Button1.attach(button1_callback);
     Button2.attach(button2_callback);
     Blinker.attachHeartbeat(heartbeat);
     Blinker.attachDataStorage(dataStorage);
-    Blinker.attachRTData(rtData);
 }
 
 void loop()
