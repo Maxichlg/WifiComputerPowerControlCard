@@ -14,7 +14,7 @@
 #define TIME "TimeKey"
 #define TEMP "temp"
 
-char auth[] = "填写你的密钥";
+char auth[] = "填入你的密钥";
 char PWR_STATE = 0;   //开关机状态，0为关机，1为开机
 double work_time = 0;   //累计开机时长
 double start_time = 0;    //开机时间
@@ -24,6 +24,9 @@ float temp_read = 0;  //读取的温度
 
 uint32_t hebt_time = 0;//心跳包持续强制发送变量
 uint32_t hebt_time_limit = 0;//心跳包发送周期限制，时间戳变量
+
+uint32_t offline_millis = 0;//掉线时间戳
+bool offline_flag=false;//掉线触发标志
 
 
 BlinkerButton Button1(BUTTON_1);
@@ -183,13 +186,33 @@ void setup()
 
 void loop()
 {
-    sensors.requestTemperatures();
-    temp_read = sensors.getTempCByIndex(0);
-    PowerDetect();
-    CountWorkTime();
-    Blinker.run();
-    if(millis()-hebt_time<120000)   //当前减去APP上次请求心跳小于两分钟强制连续发送心跳包 
+    Blinker.run();        //运行一下Blinker库代码(库代码确认没有消息收发需求时将自动弹出，执行下方用户代码)(刚开机会先连HTTP服务器鉴权然后用鉴权信息登录MQTT服务器后才能与APP通信)
+    if(Blinker.connect()) //调用一下Blinker库的连接检测函数，若检测到MQTT服务器连接成功则执行以下用户代码
+    {   
+        offline_millis=0;offline_flag=false;//在线，所以清空掉线状态
+        //用户代码放这里：*****************************************************************************
+        sensors.requestTemperatures();
+        temp_read = sensors.getTempCByIndex(0);
+        PowerDetect();
+        CountWorkTime();
+        if(millis()-hebt_time<120000)   //当前减去APP上次请求心跳小于两分钟强制连续发送心跳包 
+        {
+            my_heartbeat();
+        }      
+        //******************************************************************************************
+    }
+    else if(!Blinker.connected()&&millis()>180000)//开机三分钟后，点灯库一旦连不上，就判掉线，触发一次
     {
-         my_heartbeat();
+        offline_flag=true;//Blinker.connected()触发标志
+    }
+    if(millis()>180000&&!offline_millis&&offline_flag)//开机后三分钟后，若触发，则记录第一次掉线时间，之后!offline_millis为假，不再触发
+    {   
+        offline_flag=false;//Blinker.connected()触发取消
+        offline_millis=millis();//记录掉线时间戳后!offline_millis为假，不再触发
+    }
+    if(millis()>180000&&offline_millis&&millis()-offline_millis>=180000)//开机三分钟后，掉线时间戳不为0，出现三分钟以上断连就重启
+    {
+        BLINKER_LOG_ALL(BLINKER_F("******************************************Reatart***************************************"));//串口打印重启消息
+        ESP.reset();//ESP 硬件重启
     }
 }
