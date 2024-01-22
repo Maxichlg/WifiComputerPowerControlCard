@@ -8,13 +8,14 @@
 #define RST_PIN 5   //重启引脚
 #define PWR_DET_PIN 13    //开机状态检测引脚
 #define TEMP_PIN 12   //测温引脚
+#define BOOT_PIN 0    //BOOT引脚，长按可重新配网
 #define BUTTON_1 "btn-pwr"
 #define BUTTON_2 "btn-rst"
 #define TEXTE_1 "TextKey"
 #define TIME "TimeKey"
 #define TEMP "temp"
 
-char auth[] = "填入你的密钥";
+char auth[] = "25f255f8cc01";
 char PWR_STATE = 0;   //开关机状态，0为关机，1为开机
 double work_time = 0;   //累计开机时长
 double start_time = 0;    //开机时间
@@ -27,6 +28,9 @@ uint32_t hebt_time_limit = 0;//心跳包发送周期限制，时间戳变量
 
 uint32_t offline_millis = 0;//掉线时间戳
 bool offline_flag=false;//掉线触发标志
+
+bool long_press_flag = false;
+uint32_t long_press_start_millis = 0;
 
 
 BlinkerButton Button1(BUTTON_1);
@@ -111,6 +115,28 @@ void CountWorkTime()
     }
 }
 
+void LongPressResetWifi()     //长按重新配网
+{
+    if(digitalRead(BOOT_PIN) == 0 && long_press_flag == false)
+    {
+        long_press_flag = true;
+        long_press_start_millis = millis();
+    }
+    else if(digitalRead(BOOT_PIN )== 0 && long_press_flag == true)
+    {
+        if(millis()-long_press_start_millis >3000)  //长按BOOT按键大于3秒重新配网
+        {
+            long_press_flag = false;
+            long_press_start_millis = 0;
+            Serial.print("************************************************************************************\n");
+            Serial.print("*************************************Reconfig Wifi**********************************\n");//串口打印重新配网消息
+            Serial.print("************************************************************************************\n");
+            Blinker.delay(1000);
+            Blinker.reset();
+        }
+    }
+}
+
 void dataStorage()    //云端存储数据，方便实时查看
 {
     Blinker.dataStorage("temp", temp_read);
@@ -118,7 +144,7 @@ void dataStorage()    //云端存储数据，方便实时查看
 
 void heartbeat()
 {
-    hebt_time=millis();   //APP请求一次心跳后，两分钟内持续发送的标志(赋值当前时间戳)
+    hebt_time = millis();   //APP请求一次心跳后，两分钟内持续发送的标志(赋值当前时间戳)
 }
 
 void my_heartbeat()
@@ -173,6 +199,7 @@ void setup()
     digitalWrite(RST_PIN, LOW);
 
     pinMode(PWR_DET_PIN, INPUT);  //开机检测引脚初始化
+    pinMode(BOOT_PIN, INPUT);  //BOOT引脚初始化
 
     Serial.begin(115200);
     BLINKER_DEBUG.stream(Serial);
@@ -212,7 +239,9 @@ void loop()
     }
     if(millis()>180000&&offline_millis&&millis()-offline_millis>=180000)//开机三分钟后，掉线时间戳不为0，出现三分钟以上断连就重启
     {
-        BLINKER_LOG_ALL(BLINKER_F("******************************************Reatart***************************************"));//串口打印重启消息
+        Serial.print("******************************************Restart***************************************\n");//串口打印重启消息
         ESP.reset();//ESP 硬件重启
     }
+
+    LongPressResetWifi();   //长按BOOT按键大于3秒重新配网
 }
