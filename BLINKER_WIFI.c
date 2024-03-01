@@ -1,5 +1,5 @@
 #define BLINKER_WIFI
-#define BLINKER_ESP_SMARTCONFIG
+#define BLINKER_ESP_APCONFIG
 #include <Blinker.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -15,7 +15,7 @@
 #define TIME "TimeKey"
 #define TEMP "temp"
 
-char auth[] = "25f255f8cc01";
+char auth[] = "你的密钥";
 char PWR_STATE = 0;   //开关机状态，0为关机，1为开机
 double work_time = 0;   //累计开机时长
 double start_time = 0;    //开机时间
